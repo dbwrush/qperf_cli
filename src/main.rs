@@ -4,6 +4,7 @@ use std::env;
 use std::io::{self};
 use std::fs;
 use std::collections::HashMap;
+use std::path::Path;
 
 lazy_static! {
     static ref QUESTION_TYPE_INDICES: HashMap<char, usize> = {
@@ -15,7 +16,7 @@ lazy_static! {
     };
 }
 
-fn main() -> io::Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     //get args from console
     let args: Vec<String> = env::args().collect();
     let mut verbose = false;
@@ -23,18 +24,28 @@ fn main() -> io::Result<()> {
     if args.len() != 3 {
         if args.len() == 4 {
             if args[3] == "-v" || args[3] == "--verbose"{
-                println!("Verbose mode enabled");
+                eprintln!("Verbose mode enabled");
                 verbose = true;
+            } else if args[3] == "-h" || args[3] == "--help" {
+                print_help();
+                return Ok(());
             }
         } else {
-            eprintln!("Usage: {} path/to/question/sets path/to/quiz/data.csv", args[0]);
-            std::process::exit(1);
+            return Err("Usage: {} path/to/question/sets path/to/quiz/data.csv".into());
         }
     }
 
     //get the paths from the args
     let question_sets_dir_path = &args[1];
     let quiz_data_path = &args[2];
+
+    // Validate the paths
+    if !Path::new(question_sets_dir_path).exists() {
+        return Err(format!("Error: The path to the question sets does not exist: {}", question_sets_dir_path).into());
+    }
+    if !Path::new(quiz_data_path).exists() {
+        return Err(format!("Error: The path to the quiz data does not exist: {}", quiz_data_path).into());
+    }
 
     // Read the directory and sort the entries by name
     let mut entries: Vec<_> = fs::read_dir(question_sets_dir_path)?
@@ -55,13 +66,13 @@ fn main() -> io::Result<()> {
                 }
                 question_types_by_round.push((round_usize, question_types));
                 if verbose {
-                    println!("Found RTF file: {:?}", entry);
+                    eprintln!("Found RTF file: {:?}", entry);
                 }
             }
         }
     }
     if verbose {
-        println!("{:?}", question_types_by_round);
+        eprintln!("{:?}", question_types_by_round);
     }
     // Sort the question types by round number
     question_types_by_round.sort_by_key(|k| k.0);
@@ -69,7 +80,7 @@ fn main() -> io::Result<()> {
     // Now you have a sorted 2D array of question types for each round
     let question_types: Vec<Vec<char>> = question_types_by_round.into_iter().map(|(_, qt)| qt).collect();
     if verbose {
-        println!("{:?}", question_types);
+        eprintln!("{:?}", question_types);
     }
     let mut quiz_records = vec![];
     //read quiz data file
@@ -87,7 +98,7 @@ fn main() -> io::Result<()> {
     let records = filter_records(quiz_records);
     let quizzer_names = get_quizzer_names(records.clone());
     if verbose {
-        println!("Quizzer Names: {:?}", quizzer_names);
+        eprintln!("Quizzer Names: {:?}", quizzer_names);
     }
     let num_quizzers = quizzer_names.len();
     let num_question_types = QUESTION_TYPE_INDICES.len();
@@ -105,7 +116,6 @@ fn main() -> io::Result<()> {
 }
 
 fn print_results(quizzer_names: Vec<String>, attempts: Vec<Vec<f32>>, correct_answers: Vec<Vec<f32>>, bonus_attempts: Vec<Vec<f32>>, bonus: Vec<Vec<f32>>) {
-    println!();
     // Print the header
     print!("Quizzer\t");
     let mut question_types_list: Vec<_> = QUESTION_TYPE_INDICES.keys().collect();
@@ -131,32 +141,36 @@ fn print_results(quizzer_names: Vec<String>, attempts: Vec<Vec<f32>>, correct_an
 }
 
 fn update_arrays(records: Vec<csv::StringRecord>, quizzer_names: &Vec<String>, question_types: Vec<Vec<char>>, attempts: &mut Vec<Vec<f32>>, correct_answers: &mut Vec<Vec<f32>>, bonus_attempts: &mut Vec<Vec<f32>>, bonus: &mut Vec<Vec<f32>>, verbose: bool) {
+    let mut warns = false;
     for record in records {
         if verbose {
-            println!("{:?}", record);
+            eprintln!("{:?}", record);
         }
         // Split the record by commas to get the columns
         let columns: Vec<&str> = record.into_iter().collect();
         // Get the event type code, quizzer name, and question number
         let event_code = columns.get(10).unwrap_or(&"");
         if verbose {
-            print!("ECode: {} ", event_code);
+            eprint!("ECode: {} ", event_code);
         }
         let quizzer_name = columns.get(7).unwrap_or(&"");
         if verbose {
-            print!("QName: {} ", quizzer_name);
+            eprint!("QName: {} ", quizzer_name);
         }
         let round_number = columns.get(4).unwrap_or(&"").trim_matches('\'').parse::<usize>().unwrap_or(0) - 1;
         if verbose {
-            print!("RNum: {} ", round_number + 1);
+            eprint!("RNum: {} ", round_number + 1);
         }
         let question_number = columns.get(5).unwrap_or(&"").trim_matches('\'').parse::<usize>().unwrap_or(0) - 1;
         if verbose {
-            print!("QNum: {} ", question_number + 1);
+            eprint!("QNum: {} ", question_number + 1);
         }
         // Check if the round_number and question_number are within the bounds of the question_types array
         if round_number >= question_types.len() || question_number >= question_types[round_number].len() {
-            eprintln!("Warning: No question type found for round {}, question {}. Skipping record.", round_number + 1, question_number + 1);
+            warns = true;
+            if verbose {
+                eprintln!("Warning: No question type found for round {}, question {}. Skipping record.", round_number + 1, question_number + 1);
+            }
             continue;
         }
         // Find the index of the quizzer in the quizzer_names array
@@ -164,12 +178,12 @@ fn update_arrays(records: Vec<csv::StringRecord>, quizzer_names: &Vec<String>, q
         // Get the question type based on question number
         let question_type = question_types[round_number as usize][question_number];
         if verbose {
-            print!("QType: {} ", question_type);
+            eprint!("QType: {} ", question_type);
         }
         // Find the index of the question type in the arrays
         let question_type_index = *QUESTION_TYPE_INDICES.get(&question_type).unwrap_or(&0);
         if verbose {
-            println!("QTInd: {} ", question_type_index);
+            eprintln!("QTInd: {} ", question_type_index);
         }
         // Update the arrays based on the event type code
         match *event_code {
@@ -189,6 +203,9 @@ fn update_arrays(records: Vec<csv::StringRecord>, quizzer_names: &Vec<String>, q
             }
             _ => {}
         }
+    }
+    if warns {
+        eprint!("Warning: Some records were skipped due to missing question sets");
     }
 }
 
@@ -287,4 +304,19 @@ fn read_csv_file(path: &str) -> Result<Vec<csv::StringRecord>, csv::Error> {
     }
 
     Ok(records)
+}
+
+fn print_help() {
+    println!("qperformance - A tool for analyzing quiz performance data");
+    println!();
+    println!("USAGE:");
+    println!("    qperformance path/to/question/sets path/to/quiz/data.csv");
+    println!();
+    println!("OPTIONS:");
+    println!("    -h, --help       Prints help information");
+    println!("    -v, --verbose    Enables verbose mode");
+    println!();
+    println!("ARGS:");
+    println!("    <question_sets>  The path to the directory containing the question sets");
+    println!("    <quiz_data>      The path to the CSV file containing the quiz data");
 }
