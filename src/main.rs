@@ -79,6 +79,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Now you have a sorted 2D array of question types for each round
     let question_types: Vec<Vec<char>> = question_types_by_round.into_iter().map(|(_, qt)| qt).collect();
+    let mut mut_question_types: Vec<Vec<char>> = Vec::new();
+    let mut mut_inner_vec: Vec<char> = Vec::new();
+    let inner_vec = question_types.iter().next().unwrap();
+    for (i, t) in inner_vec.iter().enumerate() {
+        if i % 20 == 0 && i > 0 {
+            mut_question_types.push(mut_inner_vec.clone());
+            mut_inner_vec.clear();
+        }
+        mut_inner_vec.push(t.clone());
+    }
+    let question_types = mut_question_types;
+
     if verbose {
         eprintln!("{:?}", question_types);
     }
@@ -176,7 +188,11 @@ fn update_arrays(records: Vec<csv::StringRecord>, quizzer_names: &Vec<String>, q
         // Find the index of the quizzer in the quizzer_names array
         let quizzer_index = quizzer_names.iter().position(|n| n == quizzer_name).unwrap_or(0);
         // Get the question type based on question number
-        let question_type = question_types[round_number as usize][question_number];
+        let mut question_type = 'G';
+        if (question_number + 1) != 21 {
+            question_type = question_types[round_number as usize][question_number];
+        }
+        let question_type = question_type;
         if verbose {
             eprint!("QType: {} ", question_type);
         }
