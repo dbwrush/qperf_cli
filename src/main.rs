@@ -29,6 +29,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else if args[3] == "-h" || args[3] == "--help" {
                 print_help();
                 return Ok(());
+            } else {
+                return Err("Usage: {} path/to/question/sets path/to/quiz/data.csv".into());
             }
         } else {
             return Err("Usage: {} path/to/question/sets path/to/quiz/data.csv".into());
