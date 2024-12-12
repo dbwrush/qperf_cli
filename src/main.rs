@@ -60,7 +60,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for entry in entries {
         if let Some(ext) = entry.extension() {
             if ext == "rtf" {
-                let round = get_round_number(entry.to_str().unwrap()).unwrap();
                 if verbose {
                     eprintln!("Found RTF file: {:?}", entry);
                 }
