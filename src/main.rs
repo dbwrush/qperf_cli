@@ -61,15 +61,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(ext) = entry.extension() {
             if ext == "rtf" {
                 let round = get_round_number(entry.to_str().unwrap()).unwrap();
+                if verbose {
+                    eprintln!("Found RTF file: {:?}", entry);
+                }
+                let round = get_round_number(entry.to_str().unwrap(), verbose).unwrap();
                 let question_types = read_rtf_file(entry.to_str().unwrap())?;
                 let round_usize = round as usize;
                 while question_types_by_round.len() < round_usize {
                     question_types_by_round.push((question_types_by_round.len(), Vec::new()));
                 }
                 question_types_by_round.push((round_usize, question_types));
-                if verbose {
-                    eprintln!("Found RTF file: {:?}", entry);
-                }
             }
         }
     }
@@ -106,10 +107,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{:?}", record);
             }*/
         }
-        Err(e) => eprintln!("Error reading CSV file: {}", e),
+        Err(e) => eprintln!("Quiz data contains formatting error: {}", e),
     }
 
     let records = filter_records(quiz_records);
+    if verbose {
+        eprintln!("Filtered Records:");
+        for record in &records {
+            eprintln!("{:?}", record);
+        }
+    }
     let quizzer_names = get_quizzer_names(records.clone());
     if verbose {
         eprintln!("Quizzer Names: {:?}", quizzer_names);
@@ -131,20 +138,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn print_results(quizzer_names: Vec<String>, attempts: Vec<Vec<f32>>, correct_answers: Vec<Vec<f32>>, bonus_attempts: Vec<Vec<f32>>, bonus: Vec<Vec<f32>>) {
     // Print the header
-    print!("Quizzer\t");
+    print!("Quizzer,\t");
     let mut question_types_list: Vec<_> = QUESTION_TYPE_INDICES.keys().collect();
     question_types_list.sort();
     for question_type in &question_types_list {
-        print!("{} QA\t{} QC\t{} BA\t{} BC\t", question_type, question_type, question_type, question_type);
+        print!("{} QA,\t{} QC,\t{} BA,\t{} BC,\t", question_type, question_type, question_type, question_type);
     }
     println!();
 
     // Print the results for each quizzer
     for (i, quizzer_name) in quizzer_names.iter().enumerate() {
-        print!("{}\t", quizzer_name);
+        print!("{},\t", quizzer_name);
         for question_type in &question_types_list {
             let question_type_index = *QUESTION_TYPE_INDICES.get(question_type).unwrap_or(&0);
-            print!("{:.1}\t{:.1}\t{:.1}\t{:.1}\t",
+            print!("{:.1},\t{:.1},\t{:.1},\t{:.1},\t",
                    attempts[i][question_type_index],
                    correct_answers[i][question_type_index],
                    bonus_attempts[i][question_type_index],
@@ -171,6 +178,10 @@ fn update_arrays(records: Vec<csv::StringRecord>, quizzer_names: &Vec<String>, q
         if verbose {
             eprint!("QName: {} ", quizzer_name);
         }
+        if verbose {//print round number now in case it's invalid.
+            let round_number = columns.get(4).unwrap_or(&"");
+            eprint!("RNum: {} ", round_number);
+        }
         let round_number = columns.get(4).unwrap_or(&"").trim_matches('\'').parse::<usize>().unwrap_or(0) - 1;
         if verbose {
             eprint!("RNum: {} ", round_number + 1);
@@ -196,7 +207,7 @@ fn update_arrays(records: Vec<csv::StringRecord>, quizzer_names: &Vec<String>, q
         }
         let question_type = question_type;
         if verbose {
-            eprint!("QType: {} ", question_type);
+            eprintln!("QType: {} ", question_type);
         }
         // Find the index of the question type in the arrays
         let question_type_index = *QUESTION_TYPE_INDICES.get(&question_type).unwrap_or(&0);
@@ -223,7 +234,7 @@ fn update_arrays(records: Vec<csv::StringRecord>, quizzer_names: &Vec<String>, q
         }
     }
     if warns {
-        eprint!("Warning: Some records were skipped due to missing question sets");
+        eprintln!("Warning: Some records were skipped due to missing question sets");
     }
 }
 
@@ -274,7 +285,7 @@ fn filter_records(records: Vec<csv::StringRecord>) -> Vec<csv::StringRecord> {
     filtered_records
 }
 
-fn get_round_number(path: &str) -> io::Result<i8> {
+fn get_round_number(path: &str, verbose:bool) -> io::Result<i8> {
     let content = fs::read_to_string(path)?;
     let re = regex::Regex::new(r"SET #(\d+)").unwrap();
     match re.captures(&content) {
@@ -289,6 +300,10 @@ fn get_round_number(path: &str) -> io::Result<i8> {
         },
         None => {
             eprintln!("Error: No round number found in file");
+            if verbose {
+                println!("RTF Content:\n{}", content);
+            }
+
             std::process::exit(1);
         }
     }
@@ -300,10 +315,13 @@ fn read_rtf_file(path: &str) -> io::Result<Vec<char>> {
     let mut question_types = Vec::new();
     let parts: Vec<_> = content.split("\\tab").collect();
     for (i, part) in parts.iter().enumerate() {
+        //println!("{}", part);
         if i % 2 == 0 && !part.is_empty() {
+            //println!("{}", part);
             let chars: Vec<char> = part.chars().collect();
             let len = chars.len();
             if len > 1 {
+                print!("{}", chars[len - 2]);
                 question_types.push(chars[len - 2]);
             }
         }
@@ -337,4 +355,41 @@ fn print_help() {
     println!("ARGS:");
     println!("    <question_sets>  The path to the directory containing the question sets");
     println!("    <quiz_data>      The path to the CSV file containing the quiz data");
+}
+
+#[cfg(test)]
+mod tests {
+    use std::result;
+
+    use super::*;
+
+    // Test for 'read_rtf_file' function
+    #[test]
+    fn test_read_rtf_file() {
+        let sample_rtf_path = "tests/questions/set1.rtf"; // Ensure a sample file exists in `tests/`
+        let result = read_rtf_file(sample_rtf_path);
+        assert!(result.is_ok());
+        let questions = result.unwrap();
+        assert!(questions.len() > 0); // Validate that questions were parsed
+    }
+
+    // Test for `read_csv_file` function
+    #[test]
+    fn test_read_csv_file() {
+        let sample_csv_path = "tests/quiz_data.csv"; // Ensure a sample file exists in `tests/`
+        let result = read_csv_file(sample_csv_path);
+        assert!(result.is_ok());
+        let records = result.unwrap();
+        assert!(records.len() > 0); // Validate that records were read
+    }
+
+    // Test for `filter_records` function
+    #[test]
+    fn test_filter_records() {
+        let records = read_csv_file("tests/quiz_data.csv").unwrap();
+        let filtered = filter_records(records);
+        let expected = read_csv_file("tests/filtered_quiz_data.csv").unwrap();
+        // Validate filtering logic (replace with actual expectations)
+        assert_eq!(filtered.len(), expected.len());
+    }
 }
