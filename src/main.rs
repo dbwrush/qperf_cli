@@ -64,9 +64,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if verbose {
                     eprintln!("Found RTF file: {:?}", entry);
                 }
-                let round = get_round_number(entry.to_str().unwrap(), verbose).unwrap();
                 let question_types = read_rtf_file(entry.to_str().unwrap())?;
-                question_types_by_round.insert(round, question_types);
+                //iterate through the map from this file and add to the main map, checking for duplicate round numbers and giving warnings for them.
+                for (round_number, question_types) in question_types {
+                    if question_types_by_round.contains_key(&round_number) {
+                        eprintln!("Warning: Duplicate question set number: {}, using only the first.", round_number);
+                    } else {
+                        question_types_by_round.insert(round_number, question_types);
+                    }
+                }
             }
         }
     }
@@ -211,7 +217,10 @@ fn update_arrays(records: Vec<csv::StringRecord>, quizzer_names: &Vec<String>, q
     if warns.len() > 0 {
         eprintln!("Warning: Some records were skipped due to missing question sets");
         eprintln!("Skipped Rounds: {:?}", warns);
-        eprintln!("Found Question Sets: {:?}", question_types.keys());
+        //Display the question set numbers found in the RTF files, sort them for easier reading.
+        let mut found_rounds: Vec<_> = question_types.keys().collect();
+        found_rounds.sort();
+        eprintln!("Found Question Sets: {:?}", found_rounds);
         eprintln!("If your question sets are not named correctly, please rename them to match the round numbers in the quiz data file");
     }
 }
@@ -263,34 +272,27 @@ fn filter_records(records: Vec<csv::StringRecord>) -> Vec<csv::StringRecord> {
     filtered_records
 }
 
-fn get_round_number(path: &str, verbose:bool) -> io::Result<String> {
+fn read_rtf_file(path: &str) -> io::Result<HashMap<String, Vec<char>>> {
     let content = fs::read_to_string(path)?;
-    //regex to get the round number. The round number is the number after "SET #" in the RTF file, may contain letters and numbers.
-
     let re = regex::Regex::new(r"SET #([A-Za-z0-9]+)").unwrap();
-    match re.captures(&content) {
-        Some(caps) => {
-            let round_number = format!("'{}'", caps.get(1).unwrap().as_str());
-            Ok(round_number)
-        },
-        None => {
-            eprintln!("Error: No round number found in file");
-            if verbose {
-                println!("RTF Content:\n{}", content);
-            }
-
-            std::process::exit(1);
-        }
-    }
-}
-
-fn read_rtf_file(path: &str) -> io::Result<Vec<char>> {
-    let content = fs::read_to_string(path)?;
     //println!("RTF Content:\n{}", content);
     let mut question_types = Vec::new();
+    let mut question_types_by_round: HashMap<String, Vec<char>> = HashMap::new();
     let parts: Vec<_> = content.split("\\tab").collect();
+    let mut round_number = String::new();
     for (i, part) in parts.iter().enumerate() {
-        //println!("{}", part);
+        //Check if part contains a new set number. Check on every part in case there's weird formatting.
+        match re.captures(&part) {
+            Some(caps) => {
+                if question_types.len() > 0 {// There are multiple question sets in this file, and we're not on the first one.
+                    question_types_by_round.insert(round_number, question_types.clone());
+                }
+                round_number = format!("'{}'", caps.get(1).unwrap().as_str());
+                question_types = Vec::new();
+            },
+            None => {}
+        }
+        
         if i % 2 == 0 && !part.is_empty() {
             //println!("{}", part);
             let chars: Vec<char> = part.chars().collect();
@@ -301,8 +303,9 @@ fn read_rtf_file(path: &str) -> io::Result<Vec<char>> {
             }
         }
     }
+    question_types_by_round.insert(round_number, question_types.clone());
 
-    Ok(question_types)
+    Ok(question_types_by_round)
 }
 
 fn read_csv_file(path: &str) -> Result<Vec<csv::StringRecord>, csv::Error> {
@@ -342,11 +345,14 @@ mod tests {
     // Test for 'read_rtf_file' function
     #[test]
     fn test_read_rtf_file() {
-        let sample_rtf_path = "tests/questions/set1.rtf"; // Ensure a sample file exists in `tests/`
+        let sample_rtf_path = "tests/questions/sets.rtf"; // Ensure a sample file exists in `tests/`
         let result = read_rtf_file(sample_rtf_path);
         assert!(result.is_ok());
         let questions = result.unwrap();
         assert!(questions.len() > 0); // Validate that questions were parsed
+
+        //assert_eq!(questions.len() == 1);
+        //You may check the exact number by uncommenting the above line and setting the expected number of question sets in the file.
     }
 
     // Test for `read_csv_file` function
@@ -357,6 +363,9 @@ mod tests {
         assert!(result.is_ok());
         let records = result.unwrap();
         assert!(records.len() > 0); // Validate that records were read
+
+        //assert_eq!(records.len() == 1);
+        //You may check the exact number by uncommenting the above line and setting the expected number of records in the file.
     }
 
     // Test for `filter_records` function
