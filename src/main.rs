@@ -55,7 +55,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect::<Result<_, io::Error>>()?;
     entries.sort();
 
-    let mut question_types_by_round = Vec::new();
+    //map round number to question types
+    let mut question_types_by_round: HashMap<String, Vec<char>> = HashMap::new();
 
     for entry in entries {
         if let Some(ext) = entry.extension() {
@@ -65,57 +66,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 let round = get_round_number(entry.to_str().unwrap(), verbose).unwrap();
                 let question_types = read_rtf_file(entry.to_str().unwrap())?;
-                let round_usize = round as usize;
-                while question_types_by_round.len() < round_usize {
-                    question_types_by_round.push((question_types_by_round.len(), Vec::new()));
-                }
-                question_types_by_round.push((round_usize, question_types));
+                question_types_by_round.insert(round, question_types);
             }
         }
     }
     if verbose {
         eprintln!("{:?}", question_types_by_round);
     }
-    // Sort the question types by round number
-    question_types_by_round.sort_by_key(|k| k.0);
 
-    // Now you have a sorted 2D array of question types for each round
-    let question_types: Vec<Vec<char>> = question_types_by_round.into_iter().map(|(_, qt)| qt).collect();
-    let mut mut_question_types: Vec<Vec<char>> = Vec::new();
-    let mut mut_inner_vec: Vec<char> = Vec::new();
-    let inner_vec = question_types.iter().next().unwrap();
-    for (i, t) in inner_vec.iter().enumerate() {
-        if i % 20 == 0 && i > 0 {
-            mut_question_types.push(mut_inner_vec.clone());
-            mut_inner_vec.clear();
-        }
-        mut_inner_vec.push(t.clone());
-    }
-    let question_types = mut_question_types;
-
-    if verbose {
-        eprintln!("{:?}", question_types);
-    }
     let mut quiz_records = vec![];
     //read quiz data file
     match read_csv_file(quiz_data_path) {
         Ok(records) => {
             quiz_records = records.clone();
-            /*println!("CSV Content:");
-            for record in records {
-                println!("{:?}", record);
-            }*/
         }
         Err(e) => eprintln!("Quiz data contains formatting error: {}", e),
     }
 
     let records = filter_records(quiz_records);
     if verbose {
-        eprintln!("Filtered Records:");
-        for record in &records {
-            eprintln!("{:?}", record);
-        }
+        eprintln!("Found {} records", records.len());
     }
+
     let quizzer_names = get_quizzer_names(records.clone());
     if verbose {
         eprintln!("Quizzer Names: {:?}", quizzer_names);
@@ -128,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bonus_attempts: Vec<Vec<f32>> = vec![vec![0.0; num_question_types]; num_quizzers];
     let mut bonus: Vec<Vec<f32>> = vec![vec![0.0; num_question_types]; num_quizzers];
 
-    update_arrays(records, &quizzer_names, question_types, &mut attempts, &mut correct_answers, &mut bonus_attempts, &mut bonus, verbose);
+    update_arrays(records, &quizzer_names, question_types_by_round, &mut attempts, &mut correct_answers, &mut bonus_attempts, &mut bonus, false);
 
     print_results(quizzer_names, attempts, correct_answers, bonus_attempts, bonus);
 
@@ -160,49 +132,53 @@ fn print_results(quizzer_names: Vec<String>, attempts: Vec<Vec<f32>>, correct_an
     }
 }
 
-fn update_arrays(records: Vec<csv::StringRecord>, quizzer_names: &Vec<String>, question_types: Vec<Vec<char>>, attempts: &mut Vec<Vec<f32>>, correct_answers: &mut Vec<Vec<f32>>, bonus_attempts: &mut Vec<Vec<f32>>, bonus: &mut Vec<Vec<f32>>, verbose: bool) {
-    let mut warns = false;
+fn update_arrays(records: Vec<csv::StringRecord>, quizzer_names: &Vec<String>, question_types: HashMap<String, Vec<char>>, attempts: &mut Vec<Vec<f32>>, correct_answers: &mut Vec<Vec<f32>>, bonus_attempts: &mut Vec<Vec<f32>>, bonus: &mut Vec<Vec<f32>>, verbose: bool) {
+    //list of skipped rounds
+    let mut warns: Vec<String> = Vec::new();
+
     for record in records {
-        if verbose {
-            eprintln!("{:?}", record);
-        }
+
         // Split the record by commas to get the columns
         let columns: Vec<&str> = record.into_iter().collect();
         // Get the event type code, quizzer name, and question number
         let event_code = columns.get(10).unwrap_or(&"");
+
+        let quizzer_name = columns.get(7).unwrap_or(&"");
+
+        let round_number = columns.get(4).unwrap_or(&"");
+
+        let question_number = columns.get(5).unwrap_or(&"").trim_matches('\'').parse::<usize>().unwrap_or(0) - 1;
+
+        // Find the index of the quizzer in the quizzer_names array
+        let quizzer_index = quizzer_names.iter().position(|n| n == quizzer_name).unwrap_or(0);
+
+        // Check if the round is in the question types map
+        if !question_types.contains_key(round_number as &str) {
+            if !warns.contains(&round_number.to_string()) {
+                warns.push(round_number.to_string());
+            }
+            //eprintln!("Warning: Skipping record due to missing question set for round {}", round_number);
+            continue;
+        }
+        if verbose {
+            eprintln!("{:?}", record);
+        }
         if verbose {
             eprint!("ECode: {} ", event_code);
         }
-        let quizzer_name = columns.get(7).unwrap_or(&"");
         if verbose {
             eprint!("QName: {} ", quizzer_name);
         }
         if verbose {//print round number now in case it's invalid.
-            let round_number = columns.get(4).unwrap_or(&"");
             eprint!("RNum: {} ", round_number);
         }
-        let round_number = columns.get(4).unwrap_or(&"").trim_matches('\'').parse::<usize>().unwrap_or(0) - 1;
-        if verbose {
-            eprint!("RNum: {} ", round_number + 1);
-        }
-        let question_number = columns.get(5).unwrap_or(&"").trim_matches('\'').parse::<usize>().unwrap_or(0) - 1;
         if verbose {
             eprint!("QNum: {} ", question_number + 1);
         }
-        // Check if the round_number and question_number are within the bounds of the question_types array
-        if round_number >= question_types.len() || question_number >= question_types[round_number].len() {
-            warns = true;
-            if verbose {
-                eprintln!("Warning: No question type found for round {}, question {}. Skipping record.", round_number + 1, question_number + 1);
-            }
-            continue;
-        }
-        // Find the index of the quizzer in the quizzer_names array
-        let quizzer_index = quizzer_names.iter().position(|n| n == quizzer_name).unwrap_or(0);
         // Get the question type based on question number
         let mut question_type = 'G';
         if (question_number + 1) != 21 {
-            question_type = question_types[round_number as usize][question_number];
+            question_type = question_types.get(round_number as &str).unwrap_or(&vec!['G'])[question_number];
         }
         let question_type = question_type;
         if verbose {
@@ -232,8 +208,11 @@ fn update_arrays(records: Vec<csv::StringRecord>, quizzer_names: &Vec<String>, q
             _ => {}
         }
     }
-    if warns {
+    if warns.len() > 0 {
         eprintln!("Warning: Some records were skipped due to missing question sets");
+        eprintln!("Skipped Rounds: {:?}", warns);
+        eprintln!("Found Question Sets: {:?}", question_types.keys());
+        eprintln!("If your question sets are not named correctly, please rename them to match the round numbers in the quiz data file");
     }
 }
 
@@ -284,18 +263,15 @@ fn filter_records(records: Vec<csv::StringRecord>) -> Vec<csv::StringRecord> {
     filtered_records
 }
 
-fn get_round_number(path: &str, verbose:bool) -> io::Result<i8> {
+fn get_round_number(path: &str, verbose:bool) -> io::Result<String> {
     let content = fs::read_to_string(path)?;
-    let re = regex::Regex::new(r"SET #(\d+)").unwrap();
+    //regex to get the round number. The round number is the number after "SET #" in the RTF file, may contain letters and numbers.
+
+    let re = regex::Regex::new(r"SET #([A-Za-z0-9]+)").unwrap();
     match re.captures(&content) {
         Some(caps) => {
-            match caps.get(1).unwrap().as_str().parse::<i8>() {
-                Ok(num) => Ok(num - 1),
-                Err(_) => {
-                    eprintln!("Error: Invalid round number: {}", caps.get(1).unwrap().as_str());
-                    std::process::exit(1);
-                }
-            }
+            let round_number = format!("'{}'", caps.get(1).unwrap().as_str());
+            Ok(round_number)
         },
         None => {
             eprintln!("Error: No round number found in file");
@@ -320,7 +296,7 @@ fn read_rtf_file(path: &str) -> io::Result<Vec<char>> {
             let chars: Vec<char> = part.chars().collect();
             let len = chars.len();
             if len > 1 {
-                print!("{}", chars[len - 2]);
+                //print!("{}", chars[len - 2]);
                 question_types.push(chars[len - 2]);
             }
         }
@@ -330,7 +306,10 @@ fn read_rtf_file(path: &str) -> io::Result<Vec<char>> {
 }
 
 fn read_csv_file(path: &str) -> Result<Vec<csv::StringRecord>, csv::Error> {
-    let mut reader = csv::Reader::from_path(path)?;
+    let mut reader = csv::ReaderBuilder::new()
+    .has_headers(false)
+    .from_path(path)?;
+
     let mut records = Vec::new();
 
     for result in reader.records() {
@@ -358,8 +337,6 @@ fn print_help() {
 
 #[cfg(test)]
 mod tests {
-    use std::result;
-
     use super::*;
 
     // Test for 'read_rtf_file' function
@@ -385,8 +362,7 @@ mod tests {
     // Test for `filter_records` function
     #[test]
     fn test_filter_records() {
-        let records = read_csv_file("tests/quiz_data.csv").unwrap();
-        let filtered = filter_records(records);
+        let filtered = filter_records(read_csv_file("tests/quiz_data.csv").unwrap());
         let expected = read_csv_file("tests/filtered_quiz_data.csv").unwrap();
         // Validate filtering logic (replace with actual expectations)
         assert_eq!(filtered.len(), expected.len());
