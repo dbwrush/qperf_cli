@@ -49,11 +49,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err(format!("Error: The path to the quiz data does not exist: {}", quiz_data_path).into());
     }
 
-    // Read the directory and sort the entries by name
-    let mut entries: Vec<_> = fs::read_dir(question_sets_dir_path)?
-        .map(|res| res.map(|e| e.path()))
-        .collect::<Result<_, io::Error>>()?;
-    entries.sort();
+    let mut entries = Vec::new();
+    if Path::new(question_sets_dir_path).is_dir() {
+        // Read the directory and sort the entries by name
+        entries = fs::read_dir(question_sets_dir_path)?
+            .map(|res| res.map(|e| e.path()))
+            .collect::<Result<_, io::Error>>()?;
+        entries.sort();
+        if verbose {//Display number of files found along with the path.
+            eprintln!("Found {} files in directory: {:?}", entries.len(), question_sets_dir_path);            
+        }
+    } else if Path::new(question_sets_dir_path).is_file() {
+        if verbose {
+            eprintln!("Reading file: {:?}", question_sets_dir_path);
+        }
+        entries.push(Path::new(question_sets_dir_path).to_path_buf());
+    } else {
+        return Err(format!("Error: The path to the question sets is not a file or directory: {}", question_sets_dir_path).into());
+    }
 
     //map round number to question types
     let mut question_types_by_round: HashMap<String, Vec<char>> = HashMap::new();
