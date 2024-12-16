@@ -19,12 +19,12 @@
 
 ### Downloading Compiled Builds
 
-Pre-compiled builds of **qperformance** are available for:
+Pre-compiled builds of **qperf_cli** are available for:
 
 - **Windows PCs** (x86, Intel/AMD CPUs)
 - **Linux PCs** (x86, Intel/AMD CPUs)
 
-You can download the latest version from the [Releases](https://github.com/dbwrush/qperformance/releases) section of this repository.
+You can download the latest version from the [Releases](https://github.com/dbwrush/qperf_cli/releases) section of this repository.
 
 > **Note:**  
 > The vast majority of Windows PCs use Intel or AMD CPUs compatible with this program. If you're unsure, try running the Windows build first.
@@ -44,19 +44,19 @@ For other systems (e.g., macOS or ARM-based devices), you will need to build the
 
 2. **Run the program** in the terminal:
    ```bash
-   ./qperformance /path/to/questions /path/to/logs.csv
+   ./qperf /path/to/questions /path/to/logs.csv
    ```
    (optional) If all your questions are in one `.rtf` file, then you may use the path to the specific file instead of the folder.
 
 3. **Pipe output to a CSV file** (optional):
    ```bash
-   ./qperformance /path/to/questions /path/to/logs.csv > output.csv
+   ./qperf /path/to/questions /path/to/logs.csv > output.csv
    ```
 
 ### Example
 
 ```bash
-./qperformance quiz_sets/ event_logs.csv > performance_report.csv
+./qperf quiz_sets/ event_logs.csv > performance_report.csv
 ```
 
 This generates `performance_report.csv`, containing detailed quizzer statistics.
@@ -75,8 +75,8 @@ If the pre-compiled binaries don't work on your machine, or you're using a platf
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/dbwrush/qperformance.git
-   cd qperformance
+   git clone https://github.com/dbwrush/qperf_cli.git
+   cd qperf_cli
    ```
 
 2. **Build the project**:
@@ -86,7 +86,7 @@ If the pre-compiled binaries don't work on your machine, or you're using a platf
 
 3. **Run the executable** from the `target/release` directory:
    ```bash
-   ./target/release/qperformance /path/to/questions /path/to/logs.csv
+   ./target/release/qperf /path/to/questions /path/to/logs.csv
    ```
 
 ---
