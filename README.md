@@ -65,7 +65,7 @@ This generates `performance_report.csv`, containing detailed quizzer statistics.
 
 ## Building From Source
 
-If the pre-compiled binaries don't work on your machine, or you're using a platform like macOS or ARM-based devices, you can build `qperformance` from source.
+If the pre-compiled binaries don't work on your machine, or you're using a platform like macOS or ARM-based devices, you can build `qperf_cli` from source.
 
 ### Prerequisites
 
