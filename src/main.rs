@@ -19,13 +19,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let mut question_sets_path = None;
     let mut quiz_data_path = None;
-    
+    let mut types_expected = false;
     for i in 1..args.len() {
         match args[i].as_str() {
             "-v" | "--verbose" => verbose = true,
             "-t" | "--types" => {
-                if i + 1 < args.len() && !args[i + 1].starts_with('-') {
-                    types = args[i + 1].chars().collect();
+                if i + 1 < args.len() {
+                    types_expected = true;                  
                 } else {
                     eprintln!("Error: Missing question types after -t or --types.");
                     return Ok(());
@@ -34,6 +34,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "-h" | "--help" => {
                 print_help();
                 return Ok(());
+            },
+            _ if types_expected => {
+                //check if argument is actually a file path, if so give an error message.
+                if args[i].contains("/") || args[i].contains("\\") {
+                    eprintln!("Error: Unexpected argument '{}'.", args[i]);
+                    eprintln!("Did you forget to specify the question types after -t or --types?");
+                    print_help();
+                    return Ok(());
+                }
+                for c in args[i].chars() {
+                    //check that c (or its uppercase equivalent) is a valid question type found in get_question_types()
+                    if !get_question_types().contains(&c.to_ascii_uppercase()) {
+                        eprintln!("Error: Invalid question type '{}'.", c);
+                        eprintln!("Valid question types are: {:?}", get_question_types());
+                        return Ok(());
+                    }
+                    types.push(c.to_ascii_uppercase());
+                }
+                types_expected = false;
             },
             _ => {
                 if question_sets_path.is_none() {
@@ -57,6 +76,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if types.is_empty() {
         types = get_question_types();
+    }
+
+    if verbose {
+        eprintln!("Using types: {:?}", types);
     }
 
     //run qperf function

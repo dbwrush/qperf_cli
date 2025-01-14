@@ -33,6 +33,18 @@ pub fn qperf(question_sets_dir_path: &str, quiz_data_path: &str, verbose: bool, 
         return Err(format!("Error: The path to the quiz data does not exist: {}", quiz_data_path).into());
     }
 
+    if verbose {
+        //print requested question types
+        eprintln!("Requested Question Types: {:?}", types);
+    }
+
+    //check that all chars in types are valid question types (from get_question_types())
+    for c in &types {
+        if !get_question_types().contains(c) {
+            return Err(format!("Error: Invalid question type '{}'.", c).into());
+        }
+    }
+
     let mut entries = Vec::new();
     if Path::new(question_sets_dir_path).is_dir() {
         // Read the directory and sort the entries by name
@@ -118,7 +130,8 @@ fn build_results(quizzer_names: Vec<String>, attempts: Vec<Vec<f32>>, correct_an
     let mut question_types_list: Vec<_> = QUESTION_TYPE_INDICES.keys().collect();
     question_types_list.sort();
     for question_type in &question_types_list {
-        if types.len() > 0 && !types.contains(question_type) {
+        if !types.contains(question_type) {
+            eprintln!("Skipping question type: {}", question_type);
             continue;
         }
         result.push_str(&format!("{} Attempted,\t{} Correct,\t{} Bonuses Attempted,\t{} Bonuses Correct,\t", question_type, question_type, question_type, question_type));
