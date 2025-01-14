@@ -131,7 +131,6 @@ fn build_results(quizzer_names: Vec<String>, attempts: Vec<Vec<f32>>, correct_an
     question_types_list.sort();
     for question_type in &question_types_list {
         if !types.contains(question_type) {
-            eprintln!("Skipping question type: {}", question_type);
             continue;
         }
         result.push_str(&format!("{} Attempted,\t{} Correct,\t{} Bonuses Attempted,\t{} Bonuses Correct,\t", question_type, question_type, question_type, question_type));
