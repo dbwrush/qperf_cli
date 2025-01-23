@@ -20,6 +20,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut question_sets_path = None;
     let mut quiz_data_path = None;
     let mut types_expected = false;
+    let mut delim_expected = false;
+    let mut delim = ",";
     for i in 1..args.len() {
         match args[i].as_str() {
             "-v" | "--verbose" => verbose = true,
@@ -35,6 +37,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 print_help();
                 return Ok(());
             },
+            "-d" | "--delim" => {
+                if i + 1 < args.len() {
+                    delim_expected = true;
+                } else {
+                    eprintln!("Error: Missing delimiter after -d or --delim.");
+                    return Ok(());
+                }
+            }
             _ if types_expected => {
                 //check if argument is actually a file path, if so give an error message.
                 if args[i].contains("/") || args[i].contains("\\") {
@@ -53,6 +63,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     types.push(c.to_ascii_uppercase());
                 }
                 types_expected = false;
+            },
+            _ if delim_expected => {
+                delim = &args[i];
+                delim_expected = false;
+
+                if delim == "\\t" { //Make sure tab characters are properly interpreted
+                    delim = "\t";
+                }
+
+                //Perform error checking on the delimiter argument
+                if delim.len() > 5 || delim.contains("/") || delim.contains("\\") {
+                    eprintln!("Error: Invalid delimiter '{}'.", delim);
+                    eprintln!("Delimiters should be short and not contain file path characters.");
+                    return Ok(());
+                }
             },
             _ => {
                 if question_sets_path.is_none() {
@@ -83,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     //run qperf function
-    match qperf(&question_sets_path.unwrap(), &quiz_data_path.unwrap(), verbose, types) {
+    match qperf(&question_sets_path.unwrap(), &quiz_data_path.unwrap(), verbose, types, delim.to_string()) {
         Ok(result) => {
             //print result to standard output. Result will contain newline characters.
             //The Vec<String> is warnings, and the String is the result of the analysis
