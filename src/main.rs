@@ -139,6 +139,7 @@ fn print_help() {
     println!("    -h, --help       Prints help information and exits.");
     println!("    -v, --verbose    Enables verbose mode for detailed output.");
     println!("    -t, --types      Specifies the question types to analyze (e.g., '-t ab').");
+    println!("    -d, --delim      Specifies the delimiter for the CSV file (default is ',').");
     println!();
     println!("NOTES:");
     println!("    - The <question_sets> and <quiz_data> arguments are required and must appear.");
