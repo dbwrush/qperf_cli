@@ -15,6 +15,20 @@
   - Attempts and answers bonus questions.
 - Choose which question types to include in the report
 - Outputs results directly to the terminal or to a file in a CSV format, compatible with tools like Excel.
+- Customizable delimiters between values. Default is `,`.
+
+## Flags
+
+- Verbose `-v` or `--verbose`
+  - Display logs and debug messages as the program runs
+- Types `-t` or `--types`
+  - Select which question types to be included in output. Default to ALL
+  - Types are A, G, I, Q, R, S, X, V, and M.
+  - M is a total of types Q, R, and V
+- Delim `-d` or `--delim`
+  - Specify delimiter for output file. Default to `,`
+- Help `-h` or `--help`
+  - Display help/usage menu
 
 ---
 
