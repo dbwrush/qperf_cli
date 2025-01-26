@@ -298,25 +298,7 @@ fn get_quizzer_names(records: Vec<csv::StringRecord>, verbose: bool, warns: &mut
         //If team_number becomes 0 before any action takes place, it means the names in round_teams might be from a practice session and can't be confirmed.
         if ecode == &"'TN'" {//team name. Check if they're already in the map, and add them if not.
             if team_number == "0" {//this is a new round.
-                if action {//if action has happened, we can confirm the teams (if they weren't already!)
-                    for i in 0..round_quizzers.len() {
-                        if !confirmed_quizzers.contains(&round_quizzers[i]) {
-                            confirmed_quizzers.push(round_quizzers[i].clone());
-                            confirmed_teams.push(round_teams[i].clone());
-                        }
-                    }
-                    if verbose {
-                        eprintln!("Confirming Teams: {:?}", round_teams);
-                        eprintln!("Confirming Quizzers: {:?}", round_quizzers);
-                    }
-                } else {
-                    if verbose {
-                        eprintln!("No action taken in round, teams: {:?} might be from practice", round_teams);
-                    }
-                }
-                action = false;
-                round_teams.clear();
-                round_quizzers.clear();
+                check_valid_round(&mut round_teams, &mut round_quizzers, &mut confirmed_teams, &mut confirmed_quizzers, verbose, &mut action);
             } else {
                 if action {
                     //This shouldn't ever happen. But I've seen it happen. I'm honeslty not sure what should happen in this situation.
@@ -332,6 +314,8 @@ fn get_quizzer_names(records: Vec<csv::StringRecord>, verbose: bool, warns: &mut
             }
         } else if ecode == &"'BC'" || ecode == &"'BE'" || ecode == &"'TC'" || ecode == &"'TE'" {//action has happened, teams present in this round can be confirmed.
             action = true;
+        } else if ecode == &"'RM'" {//Indicates start of new round. Check if current teams can be confirmed.
+            check_valid_round(&mut round_teams, &mut round_quizzers, &mut confirmed_teams, &mut confirmed_quizzers, verbose, &mut action);
         }
 
         index += 1;//shouldn't be needed, but for debugging why not have it?
@@ -345,9 +329,31 @@ fn get_quizzer_names(records: Vec<csv::StringRecord>, verbose: bool, warns: &mut
     (confirmed_quizzers, confirmed_teams)
 }
 
+fn check_valid_round(round_teams: &mut Vec<String>, round_quizzers: &mut Vec<String>, confirmed_teams: &mut Vec<String>, confirmed_quizzers: &mut Vec<String>, verbose: bool, action: &mut bool) {
+    if *action {
+        for i in 0..round_quizzers.len() {
+            if !confirmed_quizzers.contains(&round_quizzers[i]) {
+                confirmed_quizzers.push(round_quizzers[i].clone());
+                confirmed_teams.push(round_teams[i].clone());
+            }
+        }
+        if verbose {
+            eprintln!("Confirming Teams: {:?}", round_teams);
+            eprintln!("Confirming Quizzers: {:?}", round_quizzers);
+        }
+    } else {
+        if verbose {
+            eprintln!("No action taken in round, teams: {:?} might be from practice", round_teams);
+        }
+    }
+    *action = false;
+    round_teams.clear();
+    round_quizzers.clear();
+}
+
 fn filter_records(records: Vec<csv::StringRecord>) -> Vec<csv::StringRecord> {
     let mut filtered_records = Vec::new();
-    let event_codes = vec!["'TC'", "'TE'", "'BC'", "'BE'", "'TN'", "'QN'"]; // event type codes
+    let event_codes = vec!["'TC'", "'TE'", "'BC'", "'BE'", "'TN'", "'QN'", "'RM'"]; // event type codes
 
     for record in records {
         // Split the record by commas to get the columns
