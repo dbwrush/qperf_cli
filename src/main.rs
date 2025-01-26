@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut quiz_data_path = None;
     let mut types_expected = false;
     let mut delim_expected = false;
-    let mut delim = ",";
+    let mut delim = ",\t";//Excel insists on using tabs as delimiters, so we'll use both. Sigh.
     for i in 1..args.len() {
         match args[i].as_str() {
             "-v" | "--verbose" => verbose = true,
