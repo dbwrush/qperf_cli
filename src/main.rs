@@ -1,7 +1,7 @@
-extern crate lazy_static;
-use std::env;
+extern crate qperf_lib;
 
-use qperf::{get_question_types, qperf};
+use std::env;
+use qperf_lib::{qperf, get_question_types};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     //get args from console
