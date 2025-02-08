@@ -8,6 +8,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let mut verbose = false;
     let mut types: Vec<char> = Vec::new();
+    let mut tourn: String = "".to_string();
+
+    #[derive(PartialEq)]
+    enum ExpectType {
+        None,
+        Types,
+        Delim,
+        Tourn
+    }
 
     //parse args
     //first two arguments should be the path to the question sets and the path to the quiz data
@@ -16,18 +25,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //  -v or --verbose: enables verbose mode
     //  -t or --types: specifies the types of questions to analyze (question types must follow the flag as a string of chars)
     //  -h or --help: prints help information (check for this first, as it overrides all other flags including file paths)
+    //  -d or --delim: specifies the delimiter for the CSV file (default is ',')
+    //  -n or --name: specifies the name of the tournament to filter data by
     
     let mut question_sets_path = None;
     let mut quiz_data_path = None;
-    let mut types_expected = false;
-    let mut delim_expected = false;
+    let mut expect_type = ExpectType::None;
     let mut delim = ",";
     for i in 1..args.len() {
         match args[i].as_str() {
             "-v" | "--verbose" => verbose = true,
             "-t" | "--types" => {
                 if i + 1 < args.len() {
-                    types_expected = true;                  
+                    expect_type = ExpectType::Types;                  
                 } else {
                     eprintln!("Error: Missing question types after -t or --types.");
                     return Ok(());
@@ -39,13 +49,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             "-d" | "--delim" => {
                 if i + 1 < args.len() {
-                    delim_expected = true;
+                    expect_type = ExpectType::Delim;
                 } else {
                     eprintln!("Error: Missing delimiter after -d or --delim.");
                     return Ok(());
                 }
             }
-            _ if types_expected => {
+            "-n" | "--name" => {
+                if i + 1 < args.len() {
+                    expect_type = ExpectType::Tourn;
+                } else {
+                    eprintln!("Error: Missing name after -n or --name.");
+                    return Ok(());
+                }
+            }
+            _ if expect_type == ExpectType::Types => {
                 //check if argument is actually a file path, if so give an error message.
                 if args[i].contains("/") || args[i].contains("\\") {
                     eprintln!("Error: Unexpected argument '{}'.", args[i]);
@@ -62,11 +80,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     types.push(c.to_ascii_uppercase());
                 }
-                types_expected = false;
+                expect_type = ExpectType::None;
             },
-            _ if delim_expected => {
+            _ if expect_type == ExpectType::Delim => {
                 delim = &args[i];
-                delim_expected = false;
+                expect_type = ExpectType::None;
 
                 if delim == "\\t" { //Make sure tab characters are properly interpreted
                     delim = "\t";
@@ -78,6 +96,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     eprintln!("Delimiters should be short and not contain file path characters.");
                     return Ok(());
                 }
+            },
+            _ if expect_type == ExpectType::Tourn => {
+                if args[i].contains("/") || args[i].contains("\\") {
+                    eprintln!("Error: Unexpected argument '{}'.", args[i]);
+                    eprintln!("Did you forget to specify the tournament name after -n or --name?");
+                    print_help();
+                    return Ok(());
+                }
+                tourn = args[i].clone();
+                expect_type = ExpectType::None;
             },
             _ => {
                 if question_sets_path.is_none() {
@@ -108,7 +136,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     //run qperf function
-    match qperf(&question_sets_path.unwrap(), &quiz_data_path.unwrap(), verbose, types, delim.to_string()) {
+    match qperf(&question_sets_path.unwrap(), &quiz_data_path.unwrap(), verbose, types, delim.to_string(), tourn) {
         Ok(result) => {
             //print result to standard output. Result will contain newline characters.
             //The Vec<String> is warnings, and the String is the result of the analysis
@@ -140,6 +168,7 @@ fn print_help() {
     println!("    -v, --verbose    Enables verbose mode for detailed output.");
     println!("    -t, --types      Specifies the question types to analyze (e.g., '-t ab').");
     println!("    -d, --delim      Specifies the delimiter for the CSV file (default is ',').");
+    println!("    -n, --name       Filters to only include data from the specified tournament.");
     println!();
     println!("NOTES:");
     println!("    - The <question_sets> and <quiz_data> arguments are required and must appear.");
