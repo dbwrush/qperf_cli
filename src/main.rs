@@ -32,37 +32,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut quiz_data_path = None;
     let mut expect_type = ExpectType::None;
     let mut delim = ",";
+    let mut display_rounds = false;
     for i in 1..args.len() {
         match args[i].as_str() {
-            "-v" | "--verbose" => verbose = true,
-            "-t" | "--types" => {
-                if i + 1 < args.len() {
-                    expect_type = ExpectType::Types;                  
-                } else {
-                    eprintln!("Error: Missing question types after -t or --types.");
-                    return Ok(());
-                }
-            },
-            "-h" | "--help" => {
-                print_help();
-                return Ok(());
-            },
-            "-d" | "--delim" => {
-                if i + 1 < args.len() {
-                    expect_type = ExpectType::Delim;
-                } else {
-                    eprintln!("Error: Missing delimiter after -d or --delim.");
-                    return Ok(());
-                }
-            }
-            "-n" | "--name" => {
-                if i + 1 < args.len() {
-                    expect_type = ExpectType::Tourn;
-                } else {
-                    eprintln!("Error: Missing name after -n or --name.");
-                    return Ok(());
-                }
-            }
             _ if expect_type == ExpectType::Types => {
                 //check if argument is actually a file path, if so give an error message.
                 if args[i].contains("/") || args[i].contains("\\") {
@@ -107,6 +79,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 tourn = args[i].clone();
                 expect_type = ExpectType::None;
             },
+            "-v" | "--verbose" => verbose = true,
+            "-t" | "--types" => {
+                if i + 1 < args.len() {
+                    expect_type = ExpectType::Types;                  
+                } else {
+                    eprintln!("Error: Missing question types after -t or --types.");
+                    return Ok(());
+                }
+            },
+            "-h" | "--help" => {
+                print_help();
+                return Ok(());
+            },
+            "-d" | "--delim" => {
+                if i + 1 < args.len() {
+                    expect_type = ExpectType::Delim;
+                } else {
+                    eprintln!("Error: Missing delimiter after -d or --delim.");
+                    return Ok(());
+                }
+            }
+            "-n" | "--name" => {
+                if i + 1 < args.len() {
+                    expect_type = ExpectType::Tourn;
+                } else {
+                    eprintln!("Error: Missing name after -n or --name.");
+                    return Ok(());
+                }
+            }
+            "-r" | "--round" => display_rounds = true,
             _ => {
                 if question_sets_path.is_none() {
                     question_sets_path = Some(args[i].clone());
@@ -136,7 +138,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     //run qperf function
-    match qperf(&question_sets_path.unwrap(), &quiz_data_path.unwrap(), verbose, types, delim.to_string(), tourn) {
+    match qperf(&question_sets_path.unwrap(), &quiz_data_path.unwrap(), verbose, types, delim.to_string(), tourn, display_rounds) {
         Ok(result) => {
             //print result to standard output. Result will contain newline characters.
             //The Vec<String> is warnings, and the String is the result of the analysis
@@ -169,6 +171,7 @@ fn print_help() {
     println!("    -t, --types      Specifies the question types to analyze (e.g., '-t ab').");
     println!("    -d, --delim      Specifies the delimiter for the CSV file (default is ',').");
     println!("    -n, --name       Filters to only include data from the specified tournament.");
+
     println!();
     println!("NOTES:");
     println!("    - The <question_sets> and <quiz_data> arguments are required and must appear.");

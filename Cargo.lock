@@ -25,9 +25,9 @@ dependencies = [
 
 [[package]]
 name = "csv-core"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5efa2b3d7902f4b634a20cae3c9c4e6209dc4779feb6863329607560143efa70"
+checksum = "7d02f3b0da4c6504f86e9cd789d8dbafab48c2321be74e9987593de5a894d93d"
 dependencies = [
  "memchr",
 ]
@@ -68,8 +68,8 @@ dependencies = [
 
 [[package]]
 name = "qperf_lib"
-version = "0.1.0"
-source = "git+https://github.com/dbwrush/qperf_lib.git#473274c1d8f7468fc2d7ce18bf47bc97c2715c24"
+version = "0.2.0"
+source = "git+https://github.com/dbwrush/qperf_lib.git#1cc6d54dff923e72f0d8b68c8603209b7536d8db"
 dependencies = [
  "csv",
  "lazy_static",
