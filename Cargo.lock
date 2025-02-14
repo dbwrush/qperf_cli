@@ -69,7 +69,7 @@ dependencies = [
 [[package]]
 name = "qperf_lib"
 version = "0.2.0"
-source = "git+https://github.com/dbwrush/qperf_lib.git#1cc6d54dff923e72f0d8b68c8603209b7536d8db"
+source = "git+https://github.com/dbwrush/qperf_lib.git#65831bc8087f2243c5ecd7e7bf950540a27199fa"
 dependencies = [
  "csv",
  "lazy_static",

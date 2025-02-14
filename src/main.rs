@@ -171,11 +171,11 @@ fn print_help() {
     println!("    -t, --types      Specifies the question types to analyze (e.g., '-t ab').");
     println!("    -d, --delim      Specifies the delimiter for the CSV file (default is ',').");
     println!("    -n, --name       Filters to only include data from the specified tournament.");
-
+    println!("    -r, --round      Displays the round number in the output.");
     println!();
     println!("NOTES:");
     println!("    - The <question_sets> and <quiz_data> arguments are required and must appear.");
-    println!("    - Flags (-v, -t) can be specified in any order relative to the positional arguments.");
+    println!("    - Flags (-v, -t, etc) can be specified in any order relative to the positional arguments.");
     println!();
     println!("EXAMPLES:");
     println!("    qperformance /path/to/questions /path/to/quiz.csv -v");
