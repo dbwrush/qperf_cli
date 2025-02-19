@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut question_sets_path = None;
     let mut quiz_data_path = None;
     let mut expect_type = ExpectType::None;
-    let mut delim = ",";
+    let mut delim = ",".to_string();
     let mut display_rounds = false;
     for i in 1..args.len() {
         match args[i].as_str() {
@@ -55,11 +55,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 expect_type = ExpectType::None;
             },
             _ if expect_type == ExpectType::Delim => {
-                delim = &args[i];
+                delim = args[i].to_string();
                 expect_type = ExpectType::None;
 
-                if delim == "\\t" { //Make sure tab characters are properly interpreted
-                    delim = "\t";
+                if delim.contains("\\t") { //Make sure tab characters are properly interpreted
+                    //replace the string "\t" with the tab character, keeping any other characters in the string
+                    delim = delim.replace("\\t", "\t");
                 }
 
                 //Perform error checking on the delimiter argument
